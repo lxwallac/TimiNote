@@ -1,0 +1,148 @@
+{% extends "base.html" %}
+
+{% block body %}
+<!-- 登录 / 首次设密 遮罩 -->
+<div id="auth-overlay" class="overlay {% if not need_login and not show_setup %}hidden{% endif %}">
+  <div class="auth-card">
+    <h1 class="brand">Timi</h1>
+    <p class="subtitle">只属于你的本地私密日记</p>
+    <p class="hint">数据仅存于本机，不会上传网络</p>
+
+    <div id="auth-setup" class="{% if password_enabled %}hidden{% endif %}">
+      <h2>设置访问密码</h2>
+      <input type="password" id="setup-password" placeholder="密码（至少4位）" autocomplete="new-password">
+      <input type="password" id="setup-confirm" placeholder="确认密码" autocomplete="new-password">
+      <button type="button" class="btn primary" id="btn-setup">启用加密保护</button>
+      <button type="button" class="btn ghost" id="btn-skip">暂不设置，直接进入</button>
+    </div>
+
+    <div id="auth-login" class="{% if not password_enabled or not need_login %}hidden{% endif %}">
+      <h2>输入密码解锁</h2>
+      <input type="password" id="login-password" placeholder="访问密码" autocomplete="current-password">
+      <button type="button" class="btn primary" id="btn-login">解锁日记</button>
+    </div>
+
+    <p id="auth-message" class="auth-msg"></p>
+  </div>
+</div>
+
+<div class="app-shell">
+  <header class="top-bar">
+    <div class="brand-row">
+      <span class="logo">Timi</span>
+      <span class="tagline">字里行间，只此一方</span>
+    </div>
+    <div class="top-actions">
+      <button type="button" class="icon-btn" id="btn-theme" title="切换主题">🌓</button>
+      <button type="button" class="btn ghost sm" id="btn-lock">锁定</button>
+      <button type="button" class="btn ghost sm" id="btn-export-all">导出全部</button>
+    </div>
+  </header>
+
+  <section class="stats-bar" id="stats-bar">
+    <div class="stat"><span class="num" id="stat-words">0</span><span class="label">总字数</span></div>
+    <div class="stat"><span class="num" id="stat-entries">0</span><span class="label">日记篇数</span></div>
+    <div class="stat"><span class="num" id="stat-days">0</span><span class="label">书写天数</span></div>
+    <div class="stat live"><span class="num" id="stat-current">0</span><span class="label">本篇字数</span></div>
+  </section>
+
+  <main class="main-grid">
+    <!-- 左侧：编辑区 -->
+    <section class="panel editor-panel">
+      <div class="panel-head">
+        <h2>书写</h2>
+        <button type="button" class="btn primary sm" id="btn-new">新建</button>
+      </div>
+
+      <div class="form-row">
+        <label>日期</label>
+        <input type="date" id="field-date">
+      </div>
+
+      <div class="form-row">
+        <label>标题</label>
+        <input type="text" id="field-title" placeholder="可选标题…">
+      </div>
+
+      <div class="form-row">
+        <label>心情</label>
+        <div class="mood-picker" id="mood-picker"></div>
+        <input type="text" id="field-mood-custom" class="mood-custom" placeholder="自定义表情" maxlength="4">
+      </div>
+
+      <div class="form-row">
+        <label>分类标签</label>
+        <div class="tag-input-row">
+          <input type="text" id="field-tag-input" placeholder="输入后回车添加">
+          <button type="button" class="btn ghost sm" id="btn-add-catalog-tag">+ 加入标签库</button>
+        </div>
+        <div class="tag-chips" id="selected-tags"></div>
+        <div class="tag-catalog" id="tag-catalog"></div>
+      </div>
+
+      <textarea id="field-content" rows="12" placeholder="此刻的心情与故事…"></textarea>
+
+      <div class="editor-actions">
+        <button type="button" class="btn primary" id="btn-save">保存日记</button>
+        <button type="button" class="btn ghost" id="btn-clear-editor">清空编辑</button>
+        <button type="button" class="btn danger ghost" id="btn-delete">删除本篇</button>
+        <button type="button" class="btn ghost" id="btn-export-one">导出本篇 TXT</button>
+      </div>
+    </section>
+
+    <!-- 右侧：列表与筛选 -->
+    <section class="panel list-panel">
+      <div class="panel-head">
+        <h2>时光卷轴</h2>
+      </div>
+
+      <div class="filter-row">
+        <input type="text" id="filter-keyword" placeholder="搜索关键词…">
+        <select id="filter-tag"><option value="">全部标签</option></select>
+        <select id="filter-mood"><option value="">全部心情</option></select>
+        <button type="button" class="btn ghost sm" id="btn-search">筛选</button>
+      </div>
+
+      <ul class="diary-list" id="diary-list"></ul>
+      <div class="pagination" id="pagination"></div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <span>纯本地运行 · 127.0.0.1 · 隐私不上传</span>
+    <button type="button" class="link-btn hidden" id="btn-enable-password">启用密码保护</button>
+    <button type="button" class="link-btn hidden" id="btn-change-password">修改密码</button>
+  </footer>
+</div>
+
+<!-- 改密弹窗 -->
+<dialog id="dialog-password" class="modal">
+  <form method="dialog" id="form-change-password">
+    <h3>修改访问密码</h3>
+    <input type="password" name="old" placeholder="原密码" required>
+    <input type="password" name="new" placeholder="新密码（至少4位）" required>
+    <input type="password" name="confirm" placeholder="确认新密码" required>
+    <div class="modal-actions">
+      <button type="button" class="btn ghost" id="btn-cancel-password">取消</button>
+      <button type="submit" class="btn primary">确认修改</button>
+    </div>
+  </form>
+</dialog>
+
+<div id="toast" class="toast hidden"></div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  window.TIMI_BOOT = {
+    needLogin: {{ 'true' if need_login else 'false' }},
+    showSetup: {{ 'true' if show_setup else 'false' }},
+    passwordEnabled: {{ 'true' if password_enabled else 'false' }},
+    theme: "{{ theme }}"
+  };
+</script>
+<script src="{{ url_for('static', filename='js/api.js') }}"></script>
+<script src="{{ url_for('static', filename='js/auth.js') }}"></script>
+<script src="{{ url_for('static', filename='js/diary.js') }}"></script>
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+{% endblock %}
