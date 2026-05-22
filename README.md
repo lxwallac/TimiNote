@@ -1,4 +1,4 @@
-# Timi · 私密日记
+# Timi · 仿Notion的本地笔记本
 
 基于 **Flask + HTML5 + CSS3 + JavaScript** 的本地网页日记应用，界面参考 Notion 风格。服务仅绑定 `127.0.0.1`，数据保存在本机 `data/` 目录，**不上传网络**，适合个人私密记录。
 
