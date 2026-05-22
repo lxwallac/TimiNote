@@ -3,8 +3,17 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Cache-Control" content="no-cache">
   <title>{% block title %}Timi · 私密日记{% endblock %}</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+  <!-- 关键布局：即使 main.css 未加载也能保持基本结构 -->
+  <style>
+    .notion-app { display: flex; min-height: 100vh; margin: 0; }
+    .sidebar { width: 260px; flex-shrink: 0; background: #f7f7f5; border-right: 1px solid rgba(0,0,0,.08); }
+    .main-area { flex: 1; min-width: 0; }
+    .main-area { flex: 1; overflow: auto; background: #fff; }
+    .hidden { display: none !important; }
+  </style>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}?v={{ static_version | default('3') }}">
   {% block head %}{% endblock %}
 </head>
 <body>

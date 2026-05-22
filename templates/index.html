@@ -1,121 +1,168 @@
 {% extends "base.html" %}
 
 {% block body %}
-<!-- 登录 / 首次设密 遮罩 -->
 <div id="auth-overlay" class="overlay {% if not need_login and not show_setup %}hidden{% endif %}">
   <div class="auth-card">
+    <div class="auth-logo">📔</div>
     <h1 class="brand">Timi</h1>
     <p class="subtitle">只属于你的本地私密日记</p>
     <p class="hint">数据仅存于本机，不会上传网络</p>
-
     <div id="auth-setup" class="{% if password_enabled %}hidden{% endif %}">
       <h2>设置访问密码</h2>
       <input type="password" id="setup-password" placeholder="密码（至少4位）" autocomplete="new-password">
       <input type="password" id="setup-confirm" placeholder="确认密码" autocomplete="new-password">
-      <button type="button" class="btn primary" id="btn-setup">启用加密保护</button>
-      <button type="button" class="btn ghost" id="btn-skip">暂不设置，直接进入</button>
+      <button type="button" class="btn btn-accent" id="btn-setup">启用加密保护</button>
+      <button type="button" class="btn btn-ghost" id="btn-skip">暂不设置，直接进入</button>
     </div>
-
     <div id="auth-login" class="{% if not password_enabled or not need_login %}hidden{% endif %}">
       <h2>输入密码解锁</h2>
       <input type="password" id="login-password" placeholder="访问密码" autocomplete="current-password">
-      <button type="button" class="btn primary" id="btn-login">解锁日记</button>
+      <button type="button" class="btn btn-accent" id="btn-login">解锁日记</button>
     </div>
-
     <p id="auth-message" class="auth-msg"></p>
   </div>
 </div>
 
-<div class="app-shell">
-  <header class="top-bar">
-    <div class="brand-row">
-      <span class="logo">Timi</span>
-      <span class="tagline">字里行间，只此一方</span>
+<div class="notion-app">
+  <!-- 左侧边栏 -->
+  <aside class="sidebar">
+    <div class="sidebar-user">
+      <span class="user-avatar">📔</span>
+      <div class="user-info">
+        <span class="user-name">Timi 日记本</span>
+        <span class="user-meta">本地私密空间</span>
+      </div>
     </div>
-    <div class="top-actions">
-      <button type="button" class="icon-btn" id="btn-theme" title="切换主题">🌓</button>
-      <button type="button" class="btn ghost sm" id="btn-lock">锁定</button>
-      <button type="button" class="btn ghost sm" id="btn-export-all">导出全部</button>
+
+    <nav class="sidebar-nav">
+      <div class="pages-header">
+        <button type="button" class="pages-header-toggle" id="btn-pages-collapse" title="展开/收起">
+          <span class="chevron-down">▾</span>
+          <span>我的日记</span>
+        </button>
+        <button type="button" class="pages-header-add" id="btn-sidebar-folder" title="新建文件夹">📁</button>
+        <button type="button" class="pages-header-add" id="btn-sidebar-new" title="新建日记">+</button>
+      </div>
+      <div id="sidebar-pages" class="pages-tree"></div>
+
+      <div class="nav-section-title">按标签筛选</div>
+      <p class="sidebar-tag-hint">给日记打上标签后，点下面标签可只查看该类日记</p>
+      <div id="sidebar-tags" class="sidebar-tags"></div>
+      <div class="sidebar-tag-actions">
+        <button type="button" class="btn-clear-filter hidden" id="btn-clear-tag-filter">清除标签筛选</button>
+      </div>
+    </nav>
+
+    <div class="sidebar-stats">
+      <div class="sidebar-stat"><span id="stat-entries">0</span> 篇</div>
+      <div class="sidebar-stat"><span id="stat-words">0</span> 字</div>
+      <div class="sidebar-stat"><span id="stat-days">0</span> 天</div>
     </div>
-  </header>
 
-  <section class="stats-bar" id="stats-bar">
-    <div class="stat"><span class="num" id="stat-words">0</span><span class="label">总字数</span></div>
-    <div class="stat"><span class="num" id="stat-entries">0</span><span class="label">日记篇数</span></div>
-    <div class="stat"><span class="num" id="stat-days">0</span><span class="label">书写天数</span></div>
-    <div class="stat live"><span class="num" id="stat-current">0</span><span class="label">本篇字数</span></div>
-  </section>
+    <div class="sidebar-footer">
+      <button type="button" class="nav-item sm" id="btn-export-all">
+        <span class="nav-icon">📤</span> 导出全部
+      </button>
+      <button type="button" class="nav-item sm" id="btn-theme">
+        <span class="nav-icon">🌓</span> 切换主题
+      </button>
+      <button type="button" class="nav-item sm" id="btn-lock">
+        <span class="nav-icon">🔒</span> 锁定
+      </button>
+      <button type="button" class="nav-item sm hidden" id="btn-enable-password">启用密码</button>
+      <button type="button" class="nav-item sm hidden" id="btn-change-password">修改密码</button>
+      <div class="storage-hint">纯本地 · 127.0.0.1 · UI v{{ static_version }}</div>
+    </div>
+  </aside>
 
-  <main class="main-grid">
-    <!-- 左侧：编辑区 -->
-    <section class="panel editor-panel">
-      <div class="panel-head">
-        <h2>书写</h2>
-        <button type="button" class="btn primary sm" id="btn-new">新建</button>
-      </div>
+  <!-- 主内容区 -->
+  <div class="main-area">
+    <div class="page-cover"></div>
+    <div class="page-body">
+      <div class="page-icon">🍀</div>
+      <h1 class="page-title">私密日记本</h1>
+      <p class="page-desc">记录生活、情绪与灵感，数据仅保存在你的电脑</p>
 
-      <div class="form-row">
-        <label>日期</label>
-        <input type="date" id="field-date">
-      </div>
-
-      <div class="form-row">
-        <label>标题</label>
-        <input type="text" id="field-title" placeholder="可选标题…">
-      </div>
-
-      <div class="form-row">
-        <label>心情</label>
-        <div class="mood-picker" id="mood-picker"></div>
-        <input type="text" id="field-mood-custom" class="mood-custom" placeholder="自定义表情" maxlength="4">
-      </div>
-
-      <div class="form-row">
-        <label>分类标签</label>
-        <div class="tag-input-row">
-          <input type="text" id="field-tag-input" placeholder="输入后回车添加">
-          <button type="button" class="btn ghost sm" id="btn-add-catalog-tag">+ 加入标签库</button>
+      <!-- 视图切换 + 工具栏 -->
+      <div class="page-toolbar">
+        <div class="view-tabs">
+          <button type="button" class="view-tab active" data-view="table" id="tab-table">▦ 表格</button>
+          <button type="button" class="view-tab" data-view="board" id="tab-board">▢ 看板</button>
+          <button type="button" class="view-tab" data-view="calendar" id="tab-calendar">📅 日历</button>
+          <button type="button" class="view-tab" data-view="write" id="tab-write">✏️ 书写</button>
         </div>
-        <div class="tag-chips" id="selected-tags"></div>
-        <div class="tag-catalog" id="tag-catalog"></div>
+        <div class="toolbar-actions">
+          <button type="button" class="btn btn-ghost btn-sm" id="btn-quick-find" title="Ctrl+K">🔍 搜索</button>
+          <button type="button" class="btn btn-ghost btn-sm" id="btn-template">📋 模板</button>
+          <div class="toolbar-filters">
+            <input type="search" id="filter-keyword" class="toolbar-search" placeholder="筛选关键词…">
+            <select id="filter-tag" class="toolbar-select"><option value="">全部标签</option></select>
+            <select id="filter-mood" class="toolbar-select"><option value="">全部心情</option></select>
+            <button type="button" class="btn btn-ghost btn-sm" id="btn-search">筛选</button>
+            <span id="active-filter-chip" class="active-filter-chip hidden"></span>
+          </div>
+          <button type="button" class="btn btn-new" id="btn-new">新建</button>
+        </div>
       </div>
 
-      <textarea id="field-content" rows="12" placeholder="此刻的心情与故事…"></textarea>
+      <!-- 表格视图 -->
+      <section id="view-table" class="view-panel">
+        <div class="db-table-wrap">
+          <table class="db-table">
+            <thead>
+              <tr>
+                <th class="col-title"><span class="th-icon">Aa</span> 名称</th>
+                <th class="col-mood">心情</th>
+                <th class="col-tags">标签</th>
+                <th class="col-date">日期</th>
+                <th class="col-words">字数</th>
+              </tr>
+            </thead>
+            <tbody id="diary-table-body"></tbody>
+          </table>
+          <div id="diary-list" class="hidden" aria-hidden="true"></div>
+        </div>
+        <div class="pagination" id="pagination"></div>
+      </section>
 
-      <div class="editor-actions">
-        <button type="button" class="btn primary" id="btn-save">保存日记</button>
-        <button type="button" class="btn ghost" id="btn-clear-editor">清空编辑</button>
-        <button type="button" class="btn danger ghost" id="btn-delete">删除本篇</button>
-        <button type="button" class="btn ghost" id="btn-export-one">导出本篇 TXT</button>
-      </div>
-    </section>
+      <section id="view-board" class="view-panel hidden"></section>
+      <section id="view-calendar" class="view-panel hidden"></section>
 
-    <!-- 右侧：列表与筛选 -->
-    <section class="panel list-panel">
-      <div class="panel-head">
-        <h2>时光卷轴</h2>
-      </div>
+      <!-- 书写视图：主区域为块编辑器，属性在侧栏设置 -->
+      <section id="view-write" class="view-panel view-write-focus hidden">
+        <div class="write-shell">
+          <div class="write-topbar">
+            <input type="text" id="field-title" class="write-title-input" placeholder="无标题">
+            <div class="write-topbar-actions">
+              <span id="write-mood-badge" class="write-mood-badge hidden" title="心情"></span>
+              <span class="write-word-count"><span id="stat-current">0</span> 字</span>
+              <button type="button" class="btn btn-ghost btn-sm" id="btn-page-settings">⚙ 页面设置</button>
+              <button type="button" class="btn btn-accent btn-sm" id="btn-save">保存</button>
+            </div>
+          </div>
 
-      <div class="filter-row">
-        <input type="text" id="filter-keyword" placeholder="搜索关键词…">
-        <select id="filter-tag"><option value="">全部标签</option></select>
-        <select id="filter-mood"><option value="">全部心情</option></select>
-        <button type="button" class="btn ghost sm" id="btn-search">筛选</button>
-      </div>
+          <div class="block-editor-wrap write-editor-main">
+            <div id="block-add-bar" class="block-add-bar block-add-bar-compact"></div>
+            <div id="block-slash-menu" class="slash-menu hidden"></div>
+            <div id="block-list" class="block-list"></div>
+          </div>
 
-      <ul class="diary-list" id="diary-list"></ul>
-      <div class="pagination" id="pagination"></div>
-    </section>
-  </main>
-
-  <footer class="footer">
-    <span>纯本地运行 · 127.0.0.1 · 隐私不上传</span>
-    <button type="button" class="link-btn hidden" id="btn-enable-password">启用密码保护</button>
-    <button type="button" class="link-btn hidden" id="btn-change-password">修改密码</button>
-  </footer>
+          <div class="write-bottombar">
+            <span class="write-hint">输入 <kbd>/</kbd> 插入块</span>
+            <div class="write-bottombar-actions">
+              <button type="button" class="btn btn-ghost btn-sm" id="btn-clear-editor">清空</button>
+              <button type="button" class="btn btn-ghost btn-sm btn-danger-text" id="btn-delete">删除</button>
+              <button type="button" class="btn btn-ghost btn-sm" id="btn-export-one">TXT</button>
+              <button type="button" class="btn btn-ghost btn-sm" id="btn-export-md">MD</button>
+            </div>
+          </div>
+        </div>
+        <textarea id="field-content" class="hidden" aria-hidden="true"></textarea>
+      </section>
+    </div>
+  </div>
 </div>
 
-<!-- 改密弹窗 -->
 <dialog id="dialog-password" class="modal">
   <form method="dialog" id="form-change-password">
     <h3>修改访问密码</h3>
@@ -123,10 +170,61 @@
     <input type="password" name="new" placeholder="新密码（至少4位）" required>
     <input type="password" name="confirm" placeholder="确认新密码" required>
     <div class="modal-actions">
-      <button type="button" class="btn ghost" id="btn-cancel-password">取消</button>
-      <button type="submit" class="btn primary">确认修改</button>
+      <button type="button" class="btn btn-ghost" id="btn-cancel-password">取消</button>
+      <button type="submit" class="btn btn-accent">确认</button>
     </div>
   </form>
+</dialog>
+
+<!-- 页面设置侧栏：日期、心情、标签等 -->
+<div id="settings-backdrop" class="settings-backdrop hidden"></div>
+<aside id="page-settings-drawer" class="settings-drawer" aria-label="页面设置">
+  <div class="settings-drawer-head">
+    <h3>页面设置</h3>
+    <button type="button" class="settings-close" id="btn-close-settings" aria-label="关闭">×</button>
+  </div>
+  <div class="settings-drawer-body">
+    <div class="settings-group">
+      <label>日期</label>
+      <input type="date" id="field-date">
+    </div>
+    <div class="settings-group settings-note-group">
+      <label>标题</label>
+      <p class="settings-note">在书写区顶部输入框修改标题</p>
+    </div>
+    <div class="settings-group">
+      <label>心情</label>
+      <div class="mood-picker" id="mood-picker"></div>
+      <input type="text" id="field-mood-custom" class="mood-custom" placeholder="自定义表情" maxlength="4">
+    </div>
+    <div class="settings-group">
+      <label>分类标签</label>
+      <div class="tag-input-row">
+        <input type="text" id="field-tag-input" placeholder="输入后回车添加">
+        <button type="button" class="btn btn-ghost btn-sm" id="btn-add-catalog-tag">加入标签库</button>
+      </div>
+      <div class="tag-chips" id="selected-tags"></div>
+      <p class="settings-sub">标签库（点击添加）</p>
+      <div class="tag-catalog" id="tag-catalog"></div>
+    </div>
+  </div>
+</aside>
+
+<dialog id="dialog-search" class="modal modal-wide">
+  <h3>快速搜索</h3>
+  <input type="search" id="quick-find-input" placeholder="搜索标题与正文…" autocomplete="off">
+  <ul id="quick-find-results" class="quick-find-list"></ul>
+  <div class="modal-actions">
+    <button type="button" class="btn btn-ghost" id="btn-close-search">关闭</button>
+  </div>
+</dialog>
+
+<dialog id="dialog-template" class="modal">
+  <h3>选择日记模板</h3>
+  <div id="template-list" class="template-list"></div>
+  <div class="modal-actions">
+    <button type="button" class="btn btn-ghost" id="btn-close-template">取消</button>
+  </div>
 </dialog>
 
 <div id="toast" class="toast hidden"></div>
@@ -141,8 +239,10 @@
     theme: "{{ theme }}"
   };
 </script>
-<script src="{{ url_for('static', filename='js/api.js') }}"></script>
-<script src="{{ url_for('static', filename='js/auth.js') }}"></script>
-<script src="{{ url_for('static', filename='js/diary.js') }}"></script>
-<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+<script src="{{ url_for('static', filename='js/api.js') }}?v={{ static_version }}"></script>
+<script src="{{ url_for('static', filename='js/auth.js') }}?v={{ static_version }}"></script>
+<script src="{{ url_for('static', filename='js/block-editor.js') }}?v={{ static_version }}"></script>
+<script src="{{ url_for('static', filename='js/views.js') }}?v={{ static_version }}"></script>
+<script src="{{ url_for('static', filename='js/diary.js') }}?v={{ static_version }}"></script>
+<script src="{{ url_for('static', filename='js/app.js') }}?v={{ static_version }}"></script>
 {% endblock %}

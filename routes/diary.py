@@ -22,6 +22,20 @@ def stats():
     return jsonify({"ok": True, "data": store.get_stats()})
 
 
+@diary_bp.route("/diaries/all", methods=["GET"])
+def list_all_diaries():
+    """侧栏：返回全部日记（不分页）。"""
+    ok, msg = _guard()
+    if not ok:
+        return jsonify({"ok": False, "message": msg}), 403
+    tag = request.args.get("tag") or None
+    mood = request.args.get("mood") or None
+    keyword = request.args.get("q") or None
+    store = get_diary_store()
+    items = store.list_all_entries(tag=tag, mood=mood, keyword=keyword)
+    return jsonify({"ok": True, "data": items})
+
+
 @diary_bp.route("/diaries", methods=["GET"])
 def list_diaries():
     ok, msg = _guard()
@@ -66,16 +80,19 @@ def create_diary():
         return jsonify({"ok": False, "message": msg}), 403
     data = request.get_json(silent=True) or {}
     date_str = (data.get("date") or "").strip()
-    content = data.get("content") or ""
     if not date_str:
         return jsonify({"ok": False, "message": "请填写日期"}), 400
     store = get_diary_store()
     entry = store.create_entry(
         date_str=date_str,
-        content=content,
+        content=data.get("content") or "",
         title=data.get("title", ""),
         mood=data.get("mood", ""),
         tags=data.get("tags", []),
+        blocks=data.get("blocks"),
+        parent_id=data.get("parent_id", ""),
+        folder_id=data.get("folder_id", ""),
+        icon=data.get("icon", ""),
     )
     return jsonify({"ok": True, "data": entry, "stats": store.get_stats()})
 
@@ -94,6 +111,10 @@ def update_diary(entry_id):
         title=data.get("title"),
         mood=data.get("mood"),
         tags=data.get("tags"),
+        blocks=data.get("blocks"),
+        parent_id=data.get("parent_id"),
+        folder_id=data.get("folder_id"),
+        icon=data.get("icon"),
     )
     if not entry:
         return jsonify({"ok": False, "message": "日记不存在"}), 404
@@ -150,6 +171,74 @@ def theme():
     t = data.get("theme", "light")
     store.set_theme(t)
     return jsonify({"ok": True, "theme": store.get_theme()})
+
+
+@diary_bp.route("/folders", methods=["GET"])
+def list_folders():
+    ok, msg = _guard()
+    if not ok:
+        return jsonify({"ok": False, "message": msg}), 403
+    store = get_meta_store()
+    return jsonify({"ok": True, "data": store.get_folders()})
+
+
+@diary_bp.route("/folders", methods=["POST"])
+def create_folder():
+    ok, msg = _guard()
+    if not ok:
+        return jsonify({"ok": False, "message": msg}), 403
+    data = request.get_json(silent=True) or {}
+    store = get_meta_store()
+    folder = store.create_folder(
+        name=data.get("name", "新文件夹"),
+        icon=data.get("icon", "📁"),
+        parent_id=data.get("parent_id", ""),
+    )
+    return jsonify({"ok": True, "data": folder})
+
+
+@diary_bp.route("/folders/<folder_id>", methods=["DELETE"])
+def delete_folder(folder_id):
+    ok, msg = _guard()
+    if not ok:
+        return jsonify({"ok": False, "message": msg}), 403
+    store = get_meta_store()
+    if not store.delete_folder(folder_id):
+        return jsonify({"ok": False, "message": "文件夹不存在"}), 404
+    return jsonify({"ok": True})
+
+
+@diary_bp.route("/search", methods=["GET"])
+def search():
+    ok, msg = _guard()
+    if not ok:
+        return jsonify({"ok": False, "message": msg}), 403
+    q = request.args.get("q", "")
+    store = get_diary_store()
+    return jsonify({"ok": True, "data": store.search_entries(q)})
+
+
+@diary_bp.route("/templates", methods=["GET"])
+def templates():
+    import config
+
+    return jsonify({"ok": True, "data": config.DIARY_TEMPLATES})
+
+
+@diary_bp.route("/export/<entry_id>/md", methods=["GET"])
+def export_md(entry_id):
+    ok, msg = _guard()
+    if not ok:
+        return jsonify({"ok": False, "message": msg}), 403
+    store = get_diary_store()
+    text = store.export_one_md(entry_id)
+    if text is None:
+        return jsonify({"ok": False, "message": "日记不存在"}), 404
+    return Response(
+        text,
+        mimetype="text/markdown; charset=utf-8",
+        headers={"Content-Disposition": f"attachment; filename=diary_{entry_id[:8]}.md"},
+    )
 
 
 @diary_bp.route("/export/all", methods=["GET"])

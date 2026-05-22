@@ -7,6 +7,15 @@ import uuid
 from datetime import datetime
 
 import config
+from .blocks_util import (
+    blocks_to_markdown,
+    blocks_to_plain,
+    count_blocks_words,
+    default_blocks,
+    parse_stored_content,
+    plain_to_blocks,
+    serialize_content,
+)
 from .crypto_util import CryptoHelper
 
 
@@ -15,7 +24,6 @@ def _count_words(text: str) -> int:
     text = (text or "").strip()
     if not text:
         return 0
-    # 去除空白后的字符数，适合中文日记场景
     return len(text.replace("\n", "").replace("\r", ""))
 
 
@@ -47,7 +55,37 @@ class DiaryStore:
             "password_hash": "",
             "tags_catalog": list(config.DEFAULT_TAGS),
             "theme": "light",
+            "folders": [],
         }
+
+    # ----- 文件夹（侧栏页面树） -----
+
+    def get_folders(self) -> list[dict]:
+        return list(self._meta.get("folders", []))
+
+    def create_folder(self, name: str, icon: str = "📁", parent_id: str = "") -> dict:
+        folder = {
+            "id": str(uuid.uuid4()),
+            "name": (name or "新文件夹").strip(),
+            "icon": icon or "📁",
+            "parent_id": parent_id or "",
+        }
+        self._meta.setdefault("folders", []).append(folder)
+        self.save_meta()
+        return folder
+
+    def delete_folder(self, folder_id: str) -> bool:
+        folders = self._meta.get("folders", [])
+        for i, f in enumerate(folders):
+            if f["id"] == folder_id:
+                folders.pop(i)
+                for e in self._diaries.get("entries", []):
+                    if e.get("folder_id") == folder_id:
+                        e["folder_id"] = ""
+                self.save_meta()
+                self._save_diaries()
+                return True
+        return False
 
     def save_meta(self) -> None:
         with open(config.META_FILE, "w", encoding="utf-8") as f:
@@ -172,38 +210,41 @@ class DiaryStore:
             entry["content"] = plain
 
     def _entry_to_public(self, entry: dict) -> dict:
-        """返回可给前端的条目（含解密正文）。"""
-        content = ""
+        """返回可给前端的条目（含解密正文与块数据）。"""
+        raw = ""
         try:
-            content = self._read_entry_content(entry)
+            raw = self._read_entry_content(entry)
         except ValueError:
-            content = ""
+            raw = ""
+        blocks, plain = parse_stored_content(raw)
         return {
             "id": entry["id"],
             "date": entry["date"],
             "title": entry.get("title", ""),
-            "content": content,
+            "content": plain,
+            "blocks": blocks,
             "mood": entry.get("mood", ""),
             "tags": list(entry.get("tags", [])),
             "word_count": entry.get("word_count", 0),
             "created_at": entry.get("created_at", ""),
             "updated_at": entry.get("updated_at", ""),
+            "parent_id": entry.get("parent_id", "") or "",
+            "folder_id": entry.get("folder_id", "") or "",
+            "icon": entry.get("icon", "") or "",
+            "page_icon": entry.get("page_icon", "") or entry.get("mood", "") or "📄",
         }
 
-    def list_entries(
+    def _filter_entries(
         self,
-        page: int = 1,
-        per_page: int = config.DEFAULT_PAGE_SIZE,
         tag: str | None = None,
         mood: str | None = None,
         keyword: str | None = None,
         date_from: str | None = None,
         date_to: str | None = None,
-    ) -> dict:
-        """按更新时间倒序分页，支持标签/心情/关键词/日期筛选。"""
+    ) -> list[dict]:
+        """筛选并排序（更新时间倒序），返回原始条目。"""
         items = list(self._diaries.get("entries", []))
         items.sort(key=lambda e: e.get("updated_at", e.get("created_at", "")), reverse=True)
-
         if tag:
             items = [e for e in items if tag in e.get("tags", [])]
         if mood:
@@ -217,14 +258,40 @@ class DiaryStore:
             filtered = []
             for e in items:
                 try:
-                    body = self._read_entry_content(e).lower()
+                    raw = self._read_entry_content(e)
+                    _, body = parse_stored_content(raw)
                 except ValueError:
                     body = ""
                 title = (e.get("title") or "").lower()
-                if kw in body or kw in title:
+                if kw in body.lower() or kw in title:
                     filtered.append(e)
             items = filtered
+        return items
 
+    def list_all_entries(
+        self,
+        tag: str | None = None,
+        mood: str | None = None,
+        keyword: str | None = None,
+    ) -> list[dict]:
+        """返回全部符合条件的日记（供侧栏列表使用）。"""
+        items = self._filter_entries(tag=tag, mood=mood, keyword=keyword)
+        return [self._entry_to_public(e) for e in items]
+
+    def list_entries(
+        self,
+        page: int = 1,
+        per_page: int = config.DEFAULT_PAGE_SIZE,
+        tag: str | None = None,
+        mood: str | None = None,
+        keyword: str | None = None,
+        date_from: str | None = None,
+        date_to: str | None = None,
+    ) -> dict:
+        """按更新时间倒序分页，支持标签/心情/关键词/日期筛选。"""
+        items = self._filter_entries(
+            tag=tag, mood=mood, keyword=keyword, date_from=date_from, date_to=date_to
+        )
         total = len(items)
         per_page = min(max(1, per_page), config.MAX_PAGE_SIZE)
         page = max(1, page)
@@ -248,23 +315,40 @@ class DiaryStore:
     def create_entry(
         self,
         date_str: str,
-        content: str,
+        content: str = "",
         title: str = "",
         mood: str = "",
         tags: list | None = None,
+        blocks: list | None = None,
+        parent_id: str = "",
+        folder_id: str = "",
+        icon: str = "",
     ) -> dict:
         now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        if blocks:
+            plain = blocks_to_plain(blocks)
+            stored = serialize_content(blocks, plain)
+            word_count = count_blocks_words(blocks)
+        else:
+            plain = content or ""
+            bl = plain_to_blocks(plain) if plain.strip() else default_blocks()
+            stored = serialize_content(bl if plain.strip() else None, plain)
+            word_count = _count_words(plain)
         entry = {
             "id": str(uuid.uuid4()),
             "date": date_str,
             "title": (title or "").strip(),
             "mood": mood or "",
             "tags": list(tags or []),
-            "word_count": _count_words(content),
+            "word_count": word_count,
             "created_at": now,
             "updated_at": now,
+            "parent_id": parent_id or "",
+            "folder_id": folder_id or "",
+            "icon": icon or "",
+            "page_icon": icon or mood or "📄",
         }
-        self._write_entry_content(entry, content)
+        self._write_entry_content(entry, stored)
         for t in entry["tags"]:
             self.add_tag_to_catalog(t)
         self._diaries.setdefault("entries", []).append(entry)
@@ -279,6 +363,10 @@ class DiaryStore:
         title: str | None = None,
         mood: str | None = None,
         tags: list | None = None,
+        blocks: list | None = None,
+        parent_id: str | None = None,
+        folder_id: str | None = None,
+        icon: str | None = None,
     ) -> dict | None:
         for entry in self._diaries.get("entries", []):
             if entry["id"] != entry_id:
@@ -289,12 +377,25 @@ class DiaryStore:
                 entry["title"] = title.strip()
             if mood is not None:
                 entry["mood"] = mood
+            if parent_id is not None:
+                entry["parent_id"] = parent_id or ""
+            if folder_id is not None:
+                entry["folder_id"] = folder_id or ""
+            if icon is not None:
+                entry["icon"] = icon
+                entry["page_icon"] = icon or entry.get("mood", "") or "📄"
             if tags is not None:
                 entry["tags"] = list(tags)
                 for t in tags:
                     self.add_tag_to_catalog(t)
-            if content is not None:
-                self._write_entry_content(entry, content)
+            if blocks is not None:
+                stored = serialize_content(blocks)
+                self._write_entry_content(entry, stored)
+                entry["word_count"] = count_blocks_words(blocks)
+            elif content is not None:
+                bl = plain_to_blocks(content)
+                stored = serialize_content(bl, content)
+                self._write_entry_content(entry, stored)
                 entry["word_count"] = _count_words(content)
             entry["updated_at"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             self._save_diaries()
@@ -303,12 +404,44 @@ class DiaryStore:
 
     def delete_entry(self, entry_id: str) -> bool:
         entries = self._diaries.get("entries", [])
-        for i, e in enumerate(entries):
-            if e["id"] == entry_id:
-                entries.pop(i)
-                self._save_diaries()
-                return True
+        remove_ids = {entry_id}
+        changed = True
+        while changed:
+            changed = False
+            for e in entries:
+                if e.get("parent_id") in remove_ids and e["id"] not in remove_ids:
+                    remove_ids.add(e["id"])
+                    changed = True
+        new_entries = [e for e in entries if e["id"] not in remove_ids]
+        if len(new_entries) < len(entries):
+            self._diaries["entries"] = new_entries
+            self._save_diaries()
+            return True
         return False
+
+    def search_entries(self, keyword: str, limit: int = 30) -> list[dict]:
+        kw = (keyword or "").strip().lower()
+        if not kw:
+            return []
+        results = []
+        for e in self._filter_entries(keyword=kw):
+            pub = self._entry_to_public(e)
+            results.append(pub)
+            if len(results) >= limit:
+                break
+        return results
+
+    def export_one_md(self, entry_id: str) -> str | None:
+        pub = self.get_entry(entry_id)
+        if not pub:
+            return None
+        lines = [
+            f"# {pub['title'] or '无标题'}",
+            f"> 日期：{pub['date']}  心情：{pub.get('mood') or '无'}",
+            "",
+            blocks_to_markdown(pub.get("blocks") or []),
+        ]
+        return "\n".join(lines)
 
     def get_stats(self) -> dict:
         """统计总字数、篇数、书写天数（按 date 去重）。"""
