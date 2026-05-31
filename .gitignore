@@ -1,4 +1,5 @@
 data/*.json
+data/server.json
 __pycache__/
 *.pyc
 .venv/

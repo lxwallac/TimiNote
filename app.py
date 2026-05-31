@@ -11,7 +11,7 @@ import os
 
 import config
 from flask import Flask, request
-from routes import register_blueprints
+from routes import register_blueprints  
 
 
 def create_app() -> Flask:
@@ -48,8 +48,18 @@ app = create_app()
 
 
 if __name__ == "__main__":
+    launched = os.environ.get("TIMI_LAUNCHED_BY") == "launcher"
+    debug = not launched
     print("Timi 日记本 UI v%s" % config.STATIC_VERSION)
     print("项目目录:", config.BASE_DIR)
-    print("请在浏览器打开: http://127.0.0.1:5000")
-    print("若样式异常，请 Ctrl+F5 强制刷新")
-    app.run(host="127.0.0.1", port=5000, debug=True)
+    print("请在浏览器打开: http://127.0.0.1:%s" % config.DIARY_PORT)
+    if not debug:
+        print("（由控制台启动，调试模式已关闭）")
+    else:
+        print("若样式异常，请 Ctrl+F5 强制刷新")
+    app.run(
+        host="127.0.0.1",
+        port=config.DIARY_PORT,
+        debug=debug,
+        use_reloader=debug,
+    )

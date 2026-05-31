@@ -1,0 +1,185 @@
+/* Timi 控制台 */
+
+:root {
+  --bg: #f7f7f5;
+  --card: #ffffff;
+  --text: #37352f;
+  --muted: rgba(55, 53, 47, 0.55);
+  --border: rgba(55, 53, 47, 0.12);
+  --accent: #d44c47;
+  --accent-hover: #c03e39;
+  --green: #2e7d32;
+  --green-bg: #e8f5e9;
+  --red: #c62828;
+  --red-bg: #ffebee;
+  --radius: 10px;
+  --font: ui-sans-serif, "Microsoft YaHei UI", "PingFang SC", sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: var(--font);
+  background: var(--bg);
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.control-app {
+  width: min(480px, 100%);
+}
+
+.control-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.control-logo { font-size: 48px; line-height: 1; }
+
+.control-header h1 {
+  margin: 0;
+  font-size: 1.75rem;
+  font-weight: 700;
+}
+
+.subtitle {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.status-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px 24px;
+  margin-bottom: 20px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
+}
+
+.status-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.status-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #bbb;
+  flex-shrink: 0;
+}
+
+.status-card.running .status-dot {
+  background: var(--green);
+  box-shadow: 0 0 0 4px var(--green-bg);
+}
+
+.status-card.stopped .status-dot {
+  background: #999;
+}
+
+.status-card.error .status-dot {
+  background: var(--red);
+  box-shadow: 0 0 0 4px var(--red-bg);
+}
+
+.status-meta {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+}
+
+.status-meta > div {
+  display: grid;
+  grid-template-columns: 80px 1fr;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.status-meta dt {
+  margin: 0;
+  color: var(--muted);
+}
+
+.status-meta dd {
+  margin: 0;
+  word-break: break-all;
+}
+
+.status-meta dd.mono { font-size: 12px; }
+
+.status-meta a { color: var(--accent); }
+
+.actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.btn {
+  padding: 14px 20px;
+  border-radius: var(--radius);
+  border: none;
+  font-size: 15px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: opacity 0.15s, transform 0.1s;
+}
+
+.btn:active:not(:disabled) { transform: scale(0.98); }
+.btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.btn-primary {
+  background: var(--accent);
+  color: #fff;
+}
+
+.btn-primary:hover:not(:disabled) { background: var(--accent-hover); }
+
+.btn-danger {
+  background: var(--red-bg);
+  color: var(--red);
+  border: 1px solid rgba(198, 40, 40, 0.25);
+}
+
+.btn-secondary {
+  background: var(--card);
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+
+.hint {
+  margin: 20px 0 0;
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.5;
+  text-align: center;
+}
+
+.toast-msg {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 10px 20px;
+  background: var(--text);
+  color: #fff;
+  border-radius: 999px;
+  font-size: 14px;
+  z-index: 100;
+}
+
+.toast-msg.hidden { display: none; }

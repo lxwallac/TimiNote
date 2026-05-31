@@ -94,41 +94,40 @@
 
 ## 快速开始
 
+### 推荐：用控制台启停（桌面入口）
+
+1. **双击** 项目目录下的 `start_timi.bat`  
+2. 浏览器自动打开 **Timi 控制台**：http://127.0.0.1:5001  
+3. 点击 **「启动日记服务」**  
+4. 点击 **「打开日记」** 进入写日记（http://127.0.0.1:5000）  
+5. 用完后在控制台点 **「停止日记服务」**
+
+> 关闭控制台的黑窗口 **不会** 自动停止已启动的日记；要停服务请在控制台页面操作。  
+> 可将 `start_timi.bat` 右键 → 发送到桌面快捷方式，作为日常入口。
+
 ### 环境要求
 
 - Python 3.10+（推荐）
 - 依赖见 `requirements.txt`：`flask`、`cryptography`
 
-### 安装与启动
+### 手动安装依赖
 
 ```bash
-# 进入项目目录
 cd w:\项目\riji\-timi
-
-# 安装依赖（建议使用虚拟环境）
 pip install -r requirements.txt
-
-# 启动服务（终端需保持运行）
-python app.py
 ```
 
-启动后终端会提示：
+### 手动启动（开发者）
 
+```bash
+# 方式一：控制台（推荐）
+python launcher.py          # → http://127.0.0.1:5001
+
+# 方式二：直接跑日记（无控制台）
+python app.py               # → http://127.0.0.1:5000
 ```
-Timi 日记本 UI v8
-请在浏览器打开: http://127.0.0.1:5000
-```
 
-浏览器访问：**http://127.0.0.1:5000**
-
-> 若界面样式异常或仍是旧版，请在浏览器按 **Ctrl+F5** 强制刷新。侧栏底部可查看当前 UI 版本号。
-
-### 首次使用
-
-1. 可选择 **「启用加密保护」** 设置密码，或 **「暂不设置」** 直接进入。  
-2. 侧栏 **+** 或顶部 **「新建」** 创建日记。  
-3. 切换到 **✏️ 书写**，用块编辑器写作，点 **保存**。  
-4. 心情、日期、标签等点顶部 **⚙ 页面设置** 配置。  
+首次使用日记页可选择 **「启用加密保护」** 或 **「暂不设置」**；设置后正文加密存入 `data/diaries.json`。
 
 ---
 
@@ -160,7 +159,10 @@ Timi 日记本 UI v8
 
 ```
 timi/
-├── app.py                 # Flask 入口（本机 127.0.0.1:5000）
+├── launcher.py            # 控制台（:5001）启停日记
+├── process_manager.py     # 进程管理
+├── start_timi.bat         # 双击打开控制台（可建桌面快捷方式）
+├── app.py                 # 日记服务（:5000）
 ├── config.py              # 配置、模板、静态版本号
 ├── requirements.txt
 ├── routes/
@@ -174,19 +176,23 @@ timi/
 │   └── blocks_util.py     # 块 ↔ 纯文本 / Markdown
 ├── templates/
 │   ├── base.html
-│   └── index.html
+│   ├── index.html         # 日记主界面
+│   └── control.html       # 控制台页面
 ├── static/
 │   ├── css/main.css
+│   ├── css/control.css
 │   └── js/
 │       ├── api.js           # 请求封装
 │       ├── auth.js          # 认证
 │       ├── block-editor.js  # 块编辑器
 │       ├── diary.js         # 日记逻辑、侧栏树、筛选
 │       ├── views.js         # 看板、日历
+│       ├── control.js       # 控制台
 │       └── app.js           # 入口与事件绑定
-└── data/                    # 本地数据（自动生成，已 gitignore）
-    ├── meta.json            # 密码哈希、标签库、文件夹、主题
-    └── diaries.json         # 日记条目（可含加密字段）
+└── data/
+    ├── meta.json
+    ├── diaries.json
+    └── server.json          # 日记服务 PID（运行时，已 gitignore）
 ```
 
 ---

@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Timi 控制台</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/control.css') }}?v={{ static_version }}">
+</head>
+<body>
+  <div class="control-app">
+    <header class="control-header">
+      <div class="control-logo">📔</div>
+      <div>
+        <h1>Timi 控制台</h1>
+        <p class="subtitle">启动 / 停止本地日记服务</p>
+      </div>
+    </header>
+
+    <section class="status-card" id="status-card">
+      <div class="status-row">
+        <span class="status-dot" id="status-dot"></span>
+        <span class="status-text" id="status-text">检测中…</span>
+      </div>
+      <dl class="status-meta">
+        <div><dt>日记地址</dt><dd><a id="diary-link" href="#" target="_blank">http://127.0.0.1:5000</a></dd></div>
+        <div><dt>进程 ID</dt><dd id="meta-pid">—</dd></div>
+        <div><dt>启动时间</dt><dd id="meta-started">—</dd></div>
+        <div><dt>UI 版本</dt><dd id="meta-version">—</dd></div>
+        <div><dt>数据目录</dt><dd id="meta-data" class="mono">—</dd></div>
+      </dl>
+    </section>
+
+    <section class="actions">
+      <button type="button" class="btn btn-primary" id="btn-start">▶ 启动日记服务</button>
+      <button type="button" class="btn btn-danger" id="btn-stop" disabled>■ 停止日记服务</button>
+      <button type="button" class="btn btn-secondary" id="btn-open" disabled>打开日记 ↗</button>
+    </section>
+
+    <p class="hint" id="action-hint">控制台地址：http://127.0.0.1:5001 · 关闭本窗口不会停止已启动的日记服务</p>
+    <p class="toast-msg hidden" id="toast"></p>
+  </div>
+  <script src="{{ url_for('static', filename='js/control.js') }}?v={{ static_version }}"></script>
+</body>
+</html>
